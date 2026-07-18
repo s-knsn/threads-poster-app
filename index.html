@@ -379,7 +379,7 @@ function countdown(s){
 /* ---------- 操作 ---------- */
 async function approve(id, expectedStatus, dt){
   const item = cache.items.find(i => String(i.id) === String(id));
-  if(!confirm(`【承認確認】\n${fmtRel(dt)} に Threads(${item?.account})へ実際に投稿されます。\n(投稿チェックは30分ごとのため、実際の投稿は予約時刻から数分〜30分後になることがあります)\n承認しますか?`)) return;
+  if(!confirm(`【承認確認】\n${fmtRel(dt)} に Threads(${item?.account})へ実際に投稿されます(予約時刻から1分以内)。\n承認しますか?`)) return;
   await busy(async () => {
     await saveChange(id, expectedStatus, it => {
       it.status = "approved"; it.scheduled_at = dt; it.error = null;
