@@ -1,6 +1,6 @@
 // 最小限のService Worker(PWAインストール要件用)
 // ネットワーク優先・失敗時のみキャッシュ(古いアプリが残り続けるのを防ぐ)
-const CACHE = "tp-app-v2";
+const CACHE = "tp-app-v3";
 const SHELL = ["./", "index.html", "js-yaml.min.js", "manifest.json"];
 
 self.addEventListener("install", e => {

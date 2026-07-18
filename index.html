@@ -112,7 +112,15 @@ h2 .count{background:var(--line); color:var(--sub); font-size:11px; border-radiu
   color:var(--text); border-radius:12px; padding:10px; font-size:14px;}
 .custom button{background:var(--accent); color:#fff; border:none; border-radius:12px;
   padding:10px 18px; font-size:14px; font-weight:700;}
-.quiet{background:none; border:none; color:var(--faint); font-size:12px; padding:8px 0 0; text-decoration:underline;}
+.quiet{background:none; border:none; color:var(--faint); font-size:12px; padding:8px 12px 0 0; text-decoration:underline;}
+
+/* ---------- 本文編集 ---------- */
+.editbox{margin-top:10px; border-top:1px dashed var(--line); padding-top:11px}
+.editor{width:100%; background:var(--bg); border:1.5px solid var(--accent); color:var(--text);
+  border-radius:12px; padding:11px; font-size:14px; line-height:1.7; font-family:inherit; resize:vertical;}
+.qawarn{display:none; font-size:12px; color:var(--exp); background:var(--exp-bg);
+  border-radius:10px; padding:8px 11px; margin-top:8px; line-height:1.7; word-break:break-word;}
+.editrow{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:9px}
 
 .empty{color:var(--sub); font-size:13px; text-align:center; padding:40px 12px; line-height:2}
 .empty .big{font-size:34px; display:block}
@@ -192,6 +200,32 @@ const HEADER = [
 let cfg = null;
 let cache = { items: [], sha: null };
 let saving = false;
+let qaRules = [];          // qa/rules.json から読み込む(編集時の即時警告用)
+const editBase = {};       // 編集開始時の本文(競合検出用)
+
+async function loadQaRules(){
+  try{
+    const data = await api("contents/qa/rules.json");
+    const parsed = JSON.parse(b64decodeUtf8(data.content));
+    qaRules = parsed.rules.map(r => {
+      try{ return { cat: r.cat, re: new RegExp(r.pattern, "g"), desc: r.desc }; }
+      catch(e){ return null; }   // この端末で使えない正規表現はスキップ(クラウド側で必ず検査される)
+    }).filter(Boolean);
+  }catch(e){ qaRules = []; console.warn("QAルール読込失敗(クラウド側検査は有効)", e); }
+}
+function qaCheck(text){
+  const hits = [];
+  for(const r of qaRules){
+    r.re.lastIndex = 0;
+    let m;
+    while((m = r.re.exec(text)) !== null){
+      hits.push({ cat: r.cat, word: m[0], desc: r.desc });
+      if(m.index === r.re.lastIndex) r.re.lastIndex++;
+      if(hits.length >= 20) return hits;
+    }
+  }
+  return hits;
+}
 
 /* ---------- 設定 ---------- */
 function loadCfg(){ try{ cfg = JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){ cfg = null; } }
@@ -251,12 +285,14 @@ async function fetchQueue(){
 function dumpQueue(items){
   return HEADER + jsyaml.dump(items, { lineWidth: -1, noRefs: true, sortKeys: false });
 }
-async function saveChange(id, expectedStatus, mutate, message){
+async function saveChange(id, expectedStatus, mutate, message, expectedText){
   const fresh = await fetchQueue();               // 直前に最新を再取得(PC側の編集と衝突しない)
   const item = fresh.items.find(i => String(i.id) === String(id));
   if(!item) throw new Error(`投稿 ${id} が見つかりません(他の場所で削除された可能性)`);
   if(item.status !== expectedStatus)
     throw new Error(`状態が変わっています(現在: ${STATUS[item.status]?.label || item.status})。更新して確認してください`);
+  if(expectedText !== undefined && String(item.text ?? "") !== expectedText)
+    throw new Error("この投稿はPC側で編集されています。更新してから編集し直してください");
   mutate(item);
   await api("contents/queue/queue.yaml", {
     method: "PUT",
@@ -334,6 +370,70 @@ function togglePanel(id){
   document.getElementById(`pn-${cssId(id)}`)?.classList.toggle("open");
 }
 
+/* ---------- 本文編集(誤字修正用) ---------- */
+function startEdit(id){
+  const item = cache.items.find(i => String(i.id) === String(id));
+  if(!item) return;
+  const box = document.getElementById(`ed-${cssId(id)}`);
+  if(!box) return;
+  editBase[id] = String(item.text ?? "");
+  box.innerHTML = `
+    <textarea class="editor" id="ta-${cssId(id)}" rows="6"></textarea>
+    <div class="chars" id="cc-${cssId(id)}"></div>
+    <div class="qawarn" id="qw-${cssId(id)}"></div>
+    <div class="editrow">
+      <button class="approve-btn secondary" style="margin-top:0" onclick="cancelEdit('${esc(id)}')">キャンセル</button>
+      <button class="approve-btn" style="margin-top:0" onclick="saveEdit('${esc(id)}','${esc(item.status)}')">保存</button>
+    </div>`;
+  const ta = document.getElementById(`ta-${cssId(id)}`);
+  ta.value = editBase[id];
+  ta.addEventListener("input", () => editFeedback(id));
+  box.style.display = "block";
+  editFeedback(id);
+  ta.focus();
+}
+function editFeedback(id){
+  const ta = document.getElementById(`ta-${cssId(id)}`);
+  const text = ta.value;
+  const cc = document.getElementById(`cc-${cssId(id)}`);
+  cc.textContent = `${text.length} / 500字`;
+  cc.style.color = text.length > 500 ? "var(--fail)" : "var(--faint)";
+  const hits = qaCheck(text);
+  const qw = document.getElementById(`qw-${cssId(id)}`);
+  if(hits.length){
+    const seen = new Set();
+    const lines = hits.filter(h => !seen.has(h.cat + h.word) && seen.add(h.cat + h.word)).slice(0,5)
+      .map(h => `<div>⚠ [${esc(h.cat)}]「${esc(h.word)}」— ${esc(h.desc)}</div>`).join("");
+    qw.innerHTML = lines + (hits.length > 5 ? `<div>…ほか${hits.length-5}件</div>` : "");
+    qw.style.display = "block";
+  } else {
+    qw.style.display = "none";
+  }
+}
+function cancelEdit(id){
+  const box = document.getElementById(`ed-${cssId(id)}`);
+  if(box){ box.innerHTML = ""; box.style.display = "none"; }
+  delete editBase[id];
+}
+async function saveEdit(id, expectedStatus){
+  const ta = document.getElementById(`ta-${cssId(id)}`);
+  const text = ta.value;
+  if(!text.trim()){ toast("本文が空です"); return; }
+  if(text.length > 500){ toast("500字以内にしてください(現在" + text.length + "字)"); return; }
+  const hits = qaCheck(text);
+  if(hits.length &&
+     !confirm(`QA要確認が${hits.length}件あります(承認時はクラウド側でも再検査されます)。\nこのまま保存しますか?`)) return;
+  await busy(async () => {
+    await saveChange(id, expectedStatus, it => {
+      it.text = text;
+      it.error = null;   // 旧エラーはクリア(クラウドQAが必要なら再注記する)
+    }, `edit text of ${id}`, editBase[id]);
+    delete editBase[id];
+    toast("✅ 本文を保存しました");
+    await load();
+  });
+}
+
 /* ---------- 描画 ---------- */
 function cssId(id){ return String(id).replace(/[^a-zA-Z0-9_-]/g, "_"); }
 function esc(s){ const d = document.createElement("div"); d.textContent = String(s ?? ""); return d.innerHTML; }
@@ -376,8 +476,11 @@ function cardHtml(it){
     <div class="text clamp" onclick="this.classList.toggle('clamp')">${esc(text)}</div>
     <div class="chars">${text.length}字${text.length > 500 ? " ⚠ 500字超" : ""} · タップで全文表示</div>`;
   if(it.error) inner += `<div class="err"><span>⚠</span><span>${esc(it.error)}</span></div>`;
+  const editable = (st === "draft" || st === "failed" || st === "expired");
+  if(editable) inner += `<div class="editbox" id="ed-${cssId(it.id)}" style="display:none"></div>`;
   if(st === "draft") inner += panelHtml(it, "draft", "⏰ 時間を選んで承認する");
   if(st === "failed" || st === "expired") inner += panelHtml(it, st, "🔁 再スケジュールする");
+  if(editable) inner += `<button class="quiet" onclick="startEdit('${esc(it.id)}')">✏️ 本文を編集(誤字修正用)</button>`;
   if(st === "approved") inner += `<button class="quiet" onclick="unapprove('${esc(it.id)}')">予約を取り消す</button>`;
   return `<div class="card st-${esc(st)}">${inner}</div>`;
 }
@@ -437,6 +540,7 @@ async function load(){
   document.getElementById("setup").style.display = "none";
   document.getElementById("loading").style.display = "block";
   try{
+    if(!qaRules.length) await loadQaRules();
     cache = await fetchQueue();
     render();
     document.getElementById("app").style.display = "block";
