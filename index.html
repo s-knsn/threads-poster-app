@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#7c5cff">
+<meta name="theme-color" content="#5b52e0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.json">
@@ -12,82 +12,137 @@
 <title>Threads Poster</title>
 <style>
 :root{
-  --bg:#f5f4fa; --card:#ffffff; --text:#1c1b22; --sub:#6b6880;
-  --accent:#7c5cff; --accent-text:#ffffff; --line:#e5e2f0;
-  --danger:#d64545; --danger-bg:#fdecec; --ok:#2c9a5b; --ok-bg:#e8f7ee;
-  --warn:#b7791f; --warn-bg:#fdf3e0;
+  --bg:#f3f2f8; --card:#ffffff; --text:#22212b; --sub:#716e84; --faint:#a5a2b8;
+  --accent:#5b52e0; --accent-soft:#eeedfb; --line:#e7e5f0;
+  --draft:#6b7280;    --draft-bg:#f1f2f4;
+  --sched:#3b5bdb;    --sched-bg:#edf1fd;
+  --fail:#b3261e;     --fail-bg:#fbeeed;
+  --exp:#946f00;      --exp-bg:#faf3e2;
+  --ok:#217a51;       --ok-bg:#eaf6f0;
+  --shadow:0 1px 3px rgba(30,25,60,.06);
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:#141319; --card:#1e1c26; --text:#efeef5; --sub:#9a96ad;
-    --accent:#8f75ff; --line:#33303f;
-    --danger:#ff7a7a; --danger-bg:#3a2226; --ok:#5fce8f; --ok-bg:#1d3327;
-    --warn:#e8b45a; --warn-bg:#3a301c;
+    --bg:#131218; --card:#1e1c26; --text:#eeedf5; --sub:#a09db4; --faint:#6e6b82;
+    --accent:#8d85ff; --accent-soft:#2b2843; --line:#312e40;
+    --draft:#9aa1b5;  --draft-bg:#282a32;
+    --sched:#93a7ff;  --sched-bg:#232a44;
+    --fail:#ff7f6e;   --fail-bg:#3c2523;
+    --exp:#e0b75c;    --exp-bg:#38301c;
+    --ok:#5fc98e;     --ok-bg:#1e3529;
+    --shadow:none;
   }
 }
-*{box-sizing:border-box; margin:0}
+*{box-sizing:border-box; margin:0; -webkit-tap-highlight-color:transparent}
+html{font-size:16px}
 body{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
-  background:var(--bg); color:var(--text); padding-bottom:60px;}
-header{position:sticky; top:0; z-index:5; background:var(--accent); color:var(--accent-text);
-  padding:calc(env(safe-area-inset-top) + 12px) 16px 12px; display:flex; align-items:center; gap:8px;}
-header h1{font-size:17px; flex:1}
-header button{background:rgba(255,255,255,.18); color:#fff; border:none; border-radius:8px;
-  padding:7px 12px; font-size:13px;}
-#stats{display:flex; gap:8px; padding:12px 16px 4px;}
-.stat{flex:1; background:var(--card); border:1px solid var(--line); border-radius:12px;
-  padding:10px 12px; text-align:center;}
-.stat b{font-size:20px; display:block}
+  background:var(--bg); color:var(--text); padding-bottom:72px; line-height:1.5;}
+
+/* ---------- ヘッダー ---------- */
+header{position:sticky; top:0; z-index:5; background:var(--card); border-bottom:1px solid var(--line);
+  padding:calc(env(safe-area-inset-top) + 10px) 16px 10px; display:flex; align-items:center; gap:10px;}
+header .title{flex:1; min-width:0}
+header h1{font-size:16px; font-weight:700; letter-spacing:.01em}
+header .sync{font-size:11px; color:var(--faint)}
+.iconbtn{background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:12px;
+  width:42px; height:42px; font-size:17px; display:flex; align-items:center; justify-content:center;}
+.iconbtn:active{transform:scale(.94)}
+
+/* ---------- サマリー ---------- */
+#stats{display:flex; gap:8px; padding:14px 16px 2px;}
+.stat{flex:1; background:var(--card); border:1px solid var(--line); border-radius:14px;
+  box-shadow:var(--shadow); padding:10px 6px 9px; text-align:center;}
+.stat b{font-size:24px; font-weight:700; display:block; line-height:1.2; font-variant-numeric:tabular-nums;}
 .stat span{font-size:11px; color:var(--sub)}
-.stat.bad b{color:var(--danger)}
-main{padding:8px 16px}
-h2{font-size:13px; color:var(--sub); margin:16px 2px 8px; font-weight:600}
-.card{background:var(--card); border:1px solid var(--line); border-radius:14px;
-  padding:12px 14px; margin-bottom:10px;}
-.meta{display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:8px}
-.badge{font-size:11px; padding:2px 8px; border-radius:99px; font-weight:600}
-.badge.draft{background:var(--line); color:var(--sub)}
-.badge.approved{background:var(--ok-bg); color:var(--ok)}
-.badge.failed{background:var(--danger-bg); color:var(--danger)}
-.badge.expired{background:var(--warn-bg); color:var(--warn)}
-.badge.posted{background:var(--ok-bg); color:var(--ok)}
-.acct{font-size:11px; color:var(--sub)}
-.when{font-size:12px; color:var(--sub); margin-left:auto}
-.text{font-size:14px; line-height:1.6; white-space:pre-wrap; word-break:break-word;}
+.stat.alert{background:var(--fail-bg); border-color:transparent}
+.stat.alert b, .stat.alert span{color:var(--fail)}
+
+/* ---------- セクション ---------- */
+main{padding:6px 16px}
+h2{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--sub);
+  margin:18px 2px 8px; font-weight:700;}
+h2 .count{background:var(--line); color:var(--sub); font-size:11px; border-radius:99px;
+  padding:1px 8px; font-weight:600;}
+
+/* ---------- カード ---------- */
+.card{position:relative; background:var(--card); border:1px solid var(--line); border-radius:16px;
+  box-shadow:var(--shadow); padding:13px 14px 13px 17px; margin-bottom:10px; overflow:hidden;}
+.card::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--edge)}
+.card.st-draft{--edge:var(--draft)} .card.st-approved{--edge:var(--sched)}
+.card.st-failed{--edge:var(--fail)} .card.st-expired{--edge:var(--exp)} .card.st-posted{--edge:var(--ok)}
+
+.meta{display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:6px}
+.chip{display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700;
+  padding:3px 10px; border-radius:99px;}
+.chip.draft{background:var(--draft-bg); color:var(--draft)}
+.chip.approved{background:var(--sched-bg); color:var(--sched)}
+.chip.failed{background:var(--fail-bg); color:var(--fail)}
+.chip.expired{background:var(--exp-bg); color:var(--exp)}
+.chip.posted{background:var(--ok-bg); color:var(--ok)}
+.acct{font-size:11px; color:var(--sub); border:1px solid var(--line); border-radius:99px; padding:2px 9px;}
+
+.when{display:flex; align-items:baseline; gap:8px; margin:2px 0 7px;}
+.when .day{font-size:13px; color:var(--sub); font-weight:600}
+.when .time{font-size:19px; font-weight:700; font-variant-numeric:tabular-nums}
+.when .left{font-size:12px; color:var(--sched); font-weight:600; margin-left:auto}
+
+.text{font-size:14px; line-height:1.7; white-space:pre-wrap; word-break:break-word; color:var(--text);}
 .text.clamp{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
-.err{font-size:12px; color:var(--danger); background:var(--danger-bg); border-radius:8px;
-  padding:6px 10px; margin-top:8px; word-break:break-word;}
-.actions{margin-top:10px}
-.presets{display:flex; gap:6px; flex-wrap:wrap}
-.presets button{flex:1; min-width:64px; background:var(--bg); border:1px solid var(--line);
-  color:var(--text); border-radius:10px; padding:9px 4px; font-size:13px;}
-.presets button.primary{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
-.custom{display:flex; gap:6px; margin-top:8px}
-.custom input{flex:1; background:var(--bg); border:1px solid var(--line); color:var(--text);
-  border-radius:10px; padding:8px; font-size:14px;}
-.custom button{background:var(--accent); color:#fff; border:none; border-radius:10px; padding:8px 14px; font-size:13px;}
-.linkbtn{background:none; border:none; color:var(--accent); font-size:12px; padding:6px 0 0;}
-.empty{color:var(--sub); font-size:13px; text-align:center; padding:24px 0}
+.more{background:none; border:none; color:var(--faint); font-size:12px; padding:4px 0 0;}
+.chars{font-size:11px; color:var(--faint); margin-top:4px}
+
+.err{display:flex; gap:6px; font-size:12px; color:var(--fail); background:var(--fail-bg);
+  border-radius:10px; padding:8px 11px; margin-top:9px; word-break:break-word; line-height:1.6;}
+
+/* ---------- 承認パネル ---------- */
+.approve-btn{width:100%; margin-top:11px; background:var(--accent); color:#fff; border:none;
+  border-radius:13px; padding:13px; font-size:14px; font-weight:700;}
+.approve-btn.secondary{background:var(--accent-soft); color:var(--accent)}
+.approve-btn:active{transform:scale(.98)}
+.panel{margin-top:10px; border-top:1px dashed var(--line); padding-top:11px; display:none}
+.panel.open{display:block}
+.panel .plabel{font-size:12px; color:var(--sub); font-weight:600; margin-bottom:7px}
+.presets{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.presets button{background:var(--bg); border:1.5px solid var(--line); color:var(--text);
+  border-radius:12px; padding:10px 4px; font-size:15px; font-weight:700; line-height:1.25;}
+.presets button small{display:block; font-size:11px; color:var(--sub); font-weight:600}
+.presets button:active{border-color:var(--accent); color:var(--accent)}
+.custom{display:flex; gap:8px; margin-top:9px}
+.custom input{flex:1; min-width:0; background:var(--bg); border:1.5px solid var(--line);
+  color:var(--text); border-radius:12px; padding:10px; font-size:14px;}
+.custom button{background:var(--accent); color:#fff; border:none; border-radius:12px;
+  padding:10px 18px; font-size:14px; font-weight:700;}
+.quiet{background:none; border:none; color:var(--faint); font-size:12px; padding:8px 0 0; text-decoration:underline;}
+
+.empty{color:var(--sub); font-size:13px; text-align:center; padding:40px 12px; line-height:2}
+.empty .big{font-size:34px; display:block}
+
+/* ---------- 設定・共通 ---------- */
 #setup{padding:24px 20px; max-width:480px; margin:0 auto}
 #setup h2{font-size:16px; color:var(--text); margin-bottom:12px}
-#setup p, #setup li{font-size:13px; color:var(--sub); line-height:1.8}
+#setup p, #setup li{font-size:13px; color:var(--sub); line-height:1.9}
 #setup ol{padding-left:20px; margin:8px 0 16px}
-#setup input{width:100%; background:var(--card); border:1px solid var(--line); color:var(--text);
-  border-radius:10px; padding:12px; font-size:14px; margin:6px 0;}
-#setup .save{width:100%; background:var(--accent); color:#fff; border:none; border-radius:12px;
-  padding:14px; font-size:15px; font-weight:600; margin-top:12px;}
-#toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--text);
-  color:var(--bg); padding:10px 18px; border-radius:99px; font-size:13px; opacity:0;
-  transition:opacity .25s; pointer-events:none; max-width:90%; z-index:20;}
+#setup input{width:100%; background:var(--card); border:1.5px solid var(--line); color:var(--text);
+  border-radius:12px; padding:13px; font-size:14px; margin:6px 0;}
+#setup .save{width:100%; background:var(--accent); color:#fff; border:none; border-radius:13px;
+  padding:15px; font-size:15px; font-weight:700; margin-top:12px;}
+#toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--text);
+  color:var(--bg); padding:11px 20px; border-radius:99px; font-size:13px; font-weight:600; opacity:0;
+  transition:opacity .25s; pointer-events:none; max-width:90%; z-index:20; box-shadow:0 4px 16px rgba(0,0,0,.25);}
 #toast.show{opacity:1}
-#loading{text-align:center; color:var(--sub); font-size:13px; padding:28px 0}
+#loading{text-align:center; color:var(--sub); font-size:13px; padding:32px 0}
+body.saving main{opacity:.55; pointer-events:none}
 a{color:var(--accent)}
 </style>
 </head>
 <body>
 <header>
-  <h1>📤 Threads Poster</h1>
-  <button onclick="load()">↻ 更新</button>
-  <button onclick="openSetup()">⚙</button>
+  <div class="title">
+    <h1>📤 Threads Poster</h1>
+    <div class="sync" id="sync">—</div>
+  </div>
+  <button class="iconbtn" onclick="load()" title="更新">↻</button>
+  <button class="iconbtn" onclick="openSetup()" title="設定">⚙</button>
 </header>
 
 <div id="app" style="display:none">
@@ -99,7 +154,7 @@ a{color:var(--accent)}
   <h2>初期設定</h2>
   <p>GitHubのアクセスキー(Fine-grained PAT)をこの端末に保存します。キーは端末の外に送信されません(GitHub APIとの通信のみに使用)。</p>
   <ol>
-    <li>GitHub → Settings → Developer settings → <b>Fine-grained tokens</b> → Generate new token</li>
+    <li>GitHub → <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">Fine-grained token発行ページ</a></li>
     <li>Repository access: <b>Only select repositories → threads-poster</b></li>
     <li>Permissions: <b>Contents = Read and write</b></li>
     <li>生成されたキー(github_pat_…)を下に貼り付け</li>
@@ -118,7 +173,14 @@ a{color:var(--accent)}
 <script>
 "use strict";
 const LS_KEY = "tp_cfg_v1";
-const PRESETS = ["07:00","12:00","18:00","21:00"];
+const PRESET_TIMES = ["07:00","12:00","18:00","21:00"];
+const STATUS = {
+  draft:    { icon:"📝", label:"下書き" },
+  approved: { icon:"⏰", label:"予約済み" },
+  failed:   { icon:"⚠️", label:"失敗" },
+  expired:  { icon:"⏳", label:"期限切れ" },
+  posted:   { icon:"✅", label:"投稿済み" },
+};
 const HEADER = [
   "# threads-poster 投稿キュー",
   '# status: draft(下書き) / approved(承認済み=自動投稿対象) / posted / failed / expired',
@@ -129,20 +191,16 @@ const HEADER = [
 
 let cfg = null;
 let cache = { items: [], sha: null };
+let saving = false;
 
-// ---------- 設定 ----------
+/* ---------- 設定 ---------- */
 function loadCfg(){ try{ cfg = JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){ cfg = null; } }
 function openSetup(){
   document.getElementById("app").style.display = "none";
   document.getElementById("setup").style.display = "block";
-  if(cfg){
-    document.getElementById("in-owner").value = cfg.owner || "";
-    document.getElementById("in-repo").value = cfg.repo || "";
-    document.getElementById("in-pat").value = cfg.pat || "";
-  } else {
-    document.getElementById("in-owner").value = "s-knsn";
-    document.getElementById("in-repo").value = "threads-poster";
-  }
+  document.getElementById("in-owner").value = cfg?.owner || "s-knsn";
+  document.getElementById("in-repo").value = cfg?.repo || "threads-poster";
+  document.getElementById("in-pat").value = cfg?.pat || "";
 }
 function saveSetup(){
   const owner = document.getElementById("in-owner").value.trim();
@@ -155,7 +213,7 @@ function saveSetup(){
   load();
 }
 
-// ---------- GitHub API ----------
+/* ---------- GitHub API ---------- */
 async function api(path, opts = {}){
   const res = await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/${path}`, {
     ...opts,
@@ -168,7 +226,7 @@ async function api(path, opts = {}){
   });
   if(!res.ok){
     const body = await res.text();
-    throw new Error(`GitHub API ${res.status}: ${body.slice(0,200)}`);
+    throw new Error(`GitHub API ${res.status}: ${body.slice(0,180)}`);
   }
   return res.json();
 }
@@ -193,14 +251,12 @@ async function fetchQueue(){
 function dumpQueue(items){
   return HEADER + jsyaml.dump(items, { lineWidth: -1, noRefs: true, sortKeys: false });
 }
-
-// ---------- 保存(競合安全: 直前に最新を再取得し、対象itemだけ変更) ----------
 async function saveChange(id, expectedStatus, mutate, message){
-  const fresh = await fetchQueue();               // 最新を取得(PC側の編集と衝突しないように)
+  const fresh = await fetchQueue();               // 直前に最新を再取得(PC側の編集と衝突しない)
   const item = fresh.items.find(i => String(i.id) === String(id));
   if(!item) throw new Error(`投稿 ${id} が見つかりません(他の場所で削除された可能性)`);
   if(item.status !== expectedStatus)
-    throw new Error(`状態が変わっています(現在: ${item.status})。更新して確認してください`);
+    throw new Error(`状態が変わっています(現在: ${STATUS[item.status]?.label || item.status})。更新して確認してください`);
   mutate(item);
   await api("contents/queue/queue.yaml", {
     method: "PUT",
@@ -212,37 +268,57 @@ async function saveChange(id, expectedStatus, mutate, message){
   });
 }
 
-// ---------- 承認/再スケジュール ----------
+/* ---------- 日時ユーティリティ ---------- */
+const pad = n => String(n).padStart(2, "0");
+const WD = ["日","月","火","水","木","金","土"];
 function scheduleFor(timeHHMM){
-  // 指定時刻が今日まだ来ていなければ今日、過ぎていれば明日
   const now = new Date();
   const [h, m] = timeHHMM.split(":").map(Number);
   const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
   if(d <= now) d.setDate(d.getDate() + 1);
-  const pad = n => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-function fmtDT(dtStr){
-  const m = String(dtStr).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
-  if(!m) return dtStr;
-  return `${Number(m[2])}/${Number(m[3])} ${m[4]}:${m[5]}`;
+function parseDT(s){
+  const m = String(s || "").match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  return m ? new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5]) : null;
 }
+function dayLabel(d){
+  if(!d) return "";
+  const now = new Date();
+  const t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - t0) / 86400000);
+  if(diff === 0) return "今日";
+  if(diff === 1) return "明日";
+  return `${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]})`;
+}
+function fmtRel(s){
+  const d = parseDT(s);
+  return d ? `${dayLabel(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}` : String(s || "");
+}
+function countdown(s){
+  const d = parseDT(s);
+  if(!d) return "";
+  const min = Math.round((d - new Date()) / 60000);
+  if(min <= 0) return "まもなく投稿";
+  if(min < 60) return `あと${min}分`;
+  if(min < 60*24) return `あと${Math.round(min/60)}時間`;
+  return `あと${Math.round(min/1440)}日`;
+}
+
+/* ---------- 操作 ---------- */
 async function approve(id, expectedStatus, dt){
   const item = cache.items.find(i => String(i.id) === String(id));
-  const ok = confirm(`【承認確認】\n${fmtDT(dt)} に Threads(${item?.account}) へ実際に投稿されます。\n承認しますか?`);
-  if(!ok) return;
+  if(!confirm(`【承認確認】\n${fmtRel(dt)} に Threads(${item?.account})へ実際に投稿されます。\n承認しますか?`)) return;
   await busy(async () => {
     await saveChange(id, expectedStatus, it => {
-      it.status = "approved";
-      it.scheduled_at = dt;
-      it.error = null;
+      it.status = "approved"; it.scheduled_at = dt; it.error = null;
     }, `approve ${id} at ${dt}`);
-    toast(`✅ ${fmtDT(dt)} で承認しました`);
+    toast(`✅ ${fmtRel(dt)} で予約しました`);
     await load();
   });
 }
 function approveCustom(id, expectedStatus){
-  const v = document.getElementById(`dt-${cssId(id)}`).value; // datetime-local
+  const v = document.getElementById(`dt-${cssId(id)}`).value;
   if(!v){ toast("日時を選択してください"); return; }
   approve(id, expectedStatus, v.replace("T", " "));
 }
@@ -254,49 +330,68 @@ async function unapprove(id){
     await load();
   });
 }
+function togglePanel(id){
+  document.getElementById(`pn-${cssId(id)}`)?.classList.toggle("open");
+}
 
-// ---------- 描画 ----------
+/* ---------- 描画 ---------- */
 function cssId(id){ return String(id).replace(/[^a-zA-Z0-9_-]/g, "_"); }
 function esc(s){ const d = document.createElement("div"); d.textContent = String(s ?? ""); return d.innerHTML; }
-function todayStr(){
-  const n = new Date(); const pad = x => String(x).padStart(2,"0");
-  return `${n.getFullYear()}-${pad(n.getMonth()+1)}-${pad(n.getDate())}`;
+function chip(st){
+  const s = STATUS[st] || { icon:"❔", label:st };
+  return `<span class="chip ${esc(st)}">${s.icon} ${s.label}</span>`;
 }
-function pickerHtml(it, expectedStatus){
-  const btns = PRESETS.map(t =>
-    `<button onclick="approve('${esc(it.id)}','${expectedStatus}','${scheduleFor(t)}')">${t}</button>`).join("");
-  return `<div class="actions">
-    <div class="presets">${btns}</div>
+function panelHtml(it, expectedStatus, labelText){
+  const presets = PRESET_TIMES.map(t => {
+    const dt = scheduleFor(t);
+    return `<button onclick="approve('${esc(it.id)}','${expectedStatus}','${dt}')">${t.replace(/^0/,"")}<small>${dayLabel(parseDT(dt))}</small></button>`;
+  }).join("");
+  return `
+  <button class="approve-btn ${expectedStatus === "draft" ? "" : "secondary"}" onclick="togglePanel('${esc(it.id)}')">${labelText}</button>
+  <div class="panel" id="pn-${cssId(it.id)}">
+    <div class="plabel">投稿する時間を選ぶ(タップで確認へ)</div>
+    <div class="presets">${presets}</div>
     <div class="custom">
       <input type="datetime-local" id="dt-${cssId(it.id)}">
-      <button onclick="approveCustom('${esc(it.id)}','${expectedStatus}')">承認</button>
+      <button onclick="approveCustom('${esc(it.id)}','${expectedStatus}')">これで承認</button>
     </div>
   </div>`;
 }
 function cardHtml(it){
   const st = it.status;
-  const textId = `tx-${cssId(it.id)}`;
-  let inner = `<div class="meta">
-      <span class="badge ${esc(st)}">${esc(st)}</span>
-      <span class="acct">${esc(it.account)}</span>
-      <span class="when">${st === "posted" ? "投稿: " + esc(fmtDT(it.posted_at)) : "予定: " + esc(fmtDT(it.scheduled_at))}</span>
-    </div>
-    <div class="text clamp" id="${textId}" onclick="this.classList.toggle('clamp')">${esc(it.text)}</div>`;
-  if(it.error) inner += `<div class="err">⚠ ${esc(it.error)}</div>`;
-  if(st === "draft") inner += pickerHtml(it, "draft");
-  if(st === "failed" || st === "expired"){
-    inner += `<div style="font-size:12px;color:var(--sub);margin-top:8px">再スケジュール:</div>` + pickerHtml(it, st);
+  const text = String(it.text ?? "");
+  let whenHtml = "";
+  if(st === "posted"){
+    whenHtml = `<div class="when"><span class="day">投稿済</span><span class="time">${esc(fmtRel(it.posted_at))}</span></div>`;
+  } else if(it.scheduled_at){
+    const d = parseDT(it.scheduled_at);
+    whenHtml = `<div class="when">
+      <span class="day">${esc(dayLabel(d))}</span>
+      <span class="time">${d ? pad(d.getHours())+":"+pad(d.getMinutes()) : esc(it.scheduled_at)}</span>
+      ${st === "approved" ? `<span class="left">${countdown(it.scheduled_at)}</span>` : ""}
+    </div>`;
   }
-  if(st === "approved") inner += `<button class="linkbtn" onclick="unapprove('${esc(it.id)}')">予約を取り消す</button>`;
-  return `<div class="card">${inner}</div>`;
+  let inner = `<div class="meta">${chip(st)}<span class="acct">${esc(it.account)}</span></div>
+    ${whenHtml}
+    <div class="text clamp" onclick="this.classList.toggle('clamp')">${esc(text)}</div>
+    <div class="chars">${text.length}字${text.length > 500 ? " ⚠ 500字超" : ""} · タップで全文表示</div>`;
+  if(it.error) inner += `<div class="err"><span>⚠</span><span>${esc(it.error)}</span></div>`;
+  if(st === "draft") inner += panelHtml(it, "draft", "⏰ 時間を選んで承認する");
+  if(st === "failed" || st === "expired") inner += panelHtml(it, st, "🔁 再スケジュールする");
+  if(st === "approved") inner += `<button class="quiet" onclick="unapprove('${esc(it.id)}')">予約を取り消す</button>`;
+  return `<div class="card st-${esc(st)}">${inner}</div>`;
 }
-function section(title, items){
+function section(icon, title, items){
   if(!items.length) return "";
-  return `<h2>${title}</h2>` + items.map(cardHtml).join("");
+  return `<h2>${icon} ${title}<span class="count">${items.length}</span></h2>` + items.map(cardHtml).join("");
+}
+function todayStr(){
+  const n = new Date();
+  return `${n.getFullYear()}-${pad(n.getMonth()+1)}-${pad(n.getDate())}`;
 }
 function render(){
   const items = cache.items;
-  const failed = items.filter(i => i.status === "failed" || i.status === "expired");
+  const attention = items.filter(i => i.status === "failed" || i.status === "expired");
   const drafts = items.filter(i => i.status === "draft");
   const approved = items.filter(i => i.status === "approved")
     .sort((a,b) => String(a.scheduled_at).localeCompare(String(b.scheduled_at)));
@@ -307,39 +402,49 @@ function render(){
   document.getElementById("stats").innerHTML = `
     <div class="stat"><b>${todays.length}</b><span>今日の予約</span></div>
     <div class="stat"><b>${drafts.length}</b><span>承認待ち</span></div>
-    <div class="stat ${failed.length ? "bad" : ""}"><b>${failed.length}</b><span>要対応</span></div>`;
+    <div class="stat ${attention.length ? "alert" : ""}"><b>${attention.length}</b><span>要対応</span></div>`;
 
   const html =
-    section("⚠ 要対応(失敗・期限切れ)", failed) +
-    section("📝 承認待ち(下書き)", drafts) +
-    section("⏰ 予約済み", approved) +
-    section("✅ 投稿済み(直近3件)", posted);
-  document.getElementById("list").innerHTML = html || `<div class="empty">キューは空です</div>`;
+    section("🚨", "要対応", attention) +
+    section("📝", "承認待ち", drafts) +
+    section("⏰", "予約済み", approved) +
+    section("✅", "投稿済み(直近)", posted);
+  document.getElementById("list").innerHTML =
+    html || `<div class="empty"><span class="big">🌙</span>キューは空です。<br>PC側でキューに投稿を追加すると、ここに表示されます。</div>`;
+  const n = new Date();
+  document.getElementById("sync").textContent = `最終更新 ${pad(n.getHours())}:${pad(n.getMinutes())}`;
 }
 
-// ---------- 共通 ----------
+/* ---------- 共通 ---------- */
 function toast(msg){
   const t = document.getElementById("toast");
   t.textContent = msg; t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 3200);
 }
 async function busy(fn){
+  if(saving) return;             // 二重タップ防止
+  saving = true;
+  document.body.classList.add("saving");
   try{ await fn(); }
   catch(e){ toast("エラー: " + e.message); console.error(e); }
+  finally{
+    saving = false;
+    document.body.classList.remove("saving");
+  }
 }
 async function load(){
   if(!cfg){ openSetup(); return; }
   document.getElementById("setup").style.display = "none";
   document.getElementById("loading").style.display = "block";
-  await busy(async () => {
+  try{
     cache = await fetchQueue();
     render();
     document.getElementById("app").style.display = "block";
-  });
+  }catch(e){ toast("読込エラー: " + e.message); console.error(e); }
   document.getElementById("loading").style.display = "none";
 }
 document.addEventListener("visibilitychange", () => {
-  if(document.visibilityState === "visible" && cfg) load();  // アプリ復帰時に自動更新
+  if(document.visibilityState === "visible" && cfg && !saving) load();
 });
 if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
 loadCfg();
