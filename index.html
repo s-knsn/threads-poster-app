@@ -164,7 +164,8 @@ a{color:var(--accent)}
   <ol>
     <li>GitHub → <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">Fine-grained token発行ページ</a></li>
     <li>Repository access: <b>Only select repositories → threads-poster</b></li>
-    <li>Permissions: <b>Contents = Read and write</b></li>
+    <li>Permissions: <b>Contents = Read and write</b> と <b>Actions = Read and write</b>
+      (Actionsは「⚡いますぐ投稿」と時刻超過時の自動起動に必要。無くても30分ごとの定期投稿は動く)</li>
     <li>生成されたキー(github_pat_…)を下に貼り付け</li>
   </ol>
   <input id="in-owner" placeholder="GitHubユーザー名" autocapitalize="none">
@@ -262,7 +263,41 @@ async function api(path, opts = {}){
     const body = await res.text();
     throw new Error(`GitHub API ${res.status}: ${body.slice(0,180)}`);
   }
-  return res.json();
+  return res.status === 204 ? null : res.json();
+}
+
+/* ---------- 投稿処理の即時起動(cron遅延の補完) ---------- */
+async function dispatchPoster(){
+  await api("actions/workflows/post.yml/dispatches", {
+    method: "POST",
+    body: JSON.stringify({ ref: "master" })
+  });
+}
+function overdueApproved(){
+  const now = new Date();
+  return cache.items.filter(i => i.status === "approved" && parseDT(i.scheduled_at) && parseDT(i.scheduled_at) <= now);
+}
+async function runNow(manual){
+  try{
+    await dispatchPoster();
+    localStorage.setItem("tp_last_dispatch", String(Date.now()));
+    toast("⚡ 投稿処理を起動しました(1〜2分後に更新で確認)");
+  }catch(e){
+    if(manual){
+      if(String(e.message).includes("403") || String(e.message).includes("404")){
+        toast("PATにActions権限が必要です(⚙の説明参照)");
+      } else {
+        toast("起動エラー: " + e.message);
+      }
+    }
+  }
+}
+function maybeAutoDispatch(){
+  // 時刻超過の予約があれば投稿処理を自動起動(5分に1回まで)
+  if(!overdueApproved().length) return;
+  const last = Number(localStorage.getItem("tp_last_dispatch") || 0);
+  if(Date.now() - last < 5 * 60 * 1000) return;
+  runNow(false);
 }
 function b64decodeUtf8(b64){
   const bin = atob(b64.replace(/\n/g,""));
@@ -344,7 +379,7 @@ function countdown(s){
 /* ---------- 操作 ---------- */
 async function approve(id, expectedStatus, dt){
   const item = cache.items.find(i => String(i.id) === String(id));
-  if(!confirm(`【承認確認】\n${fmtRel(dt)} に Threads(${item?.account})へ実際に投稿されます。\n承認しますか?`)) return;
+  if(!confirm(`【承認確認】\n${fmtRel(dt)} に Threads(${item?.account})へ実際に投稿されます。\n(投稿チェックは30分ごとのため、実際の投稿は予約時刻から数分〜30分後になることがあります)\n承認しますか?`)) return;
   await busy(async () => {
     await saveChange(id, expectedStatus, it => {
       it.status = "approved"; it.scheduled_at = dt; it.error = null;
@@ -481,7 +516,12 @@ function cardHtml(it){
   if(st === "draft") inner += panelHtml(it, "draft", "⏰ 時間を選んで承認する");
   if(st === "failed" || st === "expired") inner += panelHtml(it, st, "🔁 再スケジュールする");
   if(editable) inner += `<button class="quiet" onclick="startEdit('${esc(it.id)}')">✏️ 本文を編集(誤字修正用)</button>`;
-  if(st === "approved") inner += `<button class="quiet" onclick="unapprove('${esc(it.id)}')">予約を取り消す</button>`;
+  if(st === "approved"){
+    const d = parseDT(it.scheduled_at);
+    if(d && d <= new Date())
+      inner += `<button class="approve-btn" onclick="runNow(true)">⚡ いますぐ投稿を実行</button>`;
+    inner += `<button class="quiet" onclick="unapprove('${esc(it.id)}')">予約を取り消す</button>`;
+  }
   return `<div class="card st-${esc(st)}">${inner}</div>`;
 }
 function section(icon, title, items){
@@ -544,6 +584,7 @@ async function load(){
     cache = await fetchQueue();
     render();
     document.getElementById("app").style.display = "block";
+    maybeAutoDispatch();   // 時刻超過の予約があれば投稿処理を即起動(cron遅延の補完)
   }catch(e){ toast("読込エラー: " + e.message); console.error(e); }
   document.getElementById("loading").style.display = "none";
 }
